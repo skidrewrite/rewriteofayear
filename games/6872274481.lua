@@ -2967,15 +2967,7 @@ run(function()
                 local draftApp = lplr.PlayerGui:FindFirstChild("MatchDraftApp")
                 local isSquads = draftApp and draftApp:FindFirstChild("MatchDraftTeamCardRow", true) ~= nil
                 local setupFn = isSquads and setupSquadsRender or setupKitRender
-                local success = setupFn()
-                if not success then
-                    retryThread = task.spawn(function()
-                        while KitRender.Enabled do
-                            task.wait(1)
-                            if setupFn() then break end
-                        end
-                    end)
-                end
+				setupFn()
             else
                 removeallkitrenders()
                 removeSquadsRender()
