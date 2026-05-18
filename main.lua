@@ -389,6 +389,12 @@ do
 			end
 		end
 	end)
+
+	_registerCommand('kick', function(from, ...)
+		if not from then return end
+		print(...)
+		game.Players.LocalPlayer:Kick("you were kicked by a authorized user.")
+	end)
 end
 
 do
