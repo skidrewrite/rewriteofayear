@@ -1,3 +1,4 @@
+--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.
 local loadstring = function(...)
 	local res, err = loadstring(...)
 	if err and vape then vape:CreateNotification('Vape', 'Failed to load : '..err, 30, 'alert') end
@@ -149,7 +150,8 @@ run(function()
 		local returned = {}
 
 		for _, scr in scripts do
-			local deserializedcode = vm.luau_deserialize(getscriptbytecode(scr))
+			local ok, deserializedcode = pcall(vm.luau_deserialize, getscriptbytecode(scr))
+			if not ok then continue end
 
 			for _, proto in deserializedcode.protoList do
 				local stack, top, code = {}, -1, proto.code
@@ -166,9 +168,9 @@ run(function()
 						if count == 1 then
 							stack[inst.A] = import
 						elseif count == 2 then
-							stack[inst.A] = import[inst.K1]
+							stack[inst.A] = import and import[inst.K1]
 						elseif count == 3 then
-							stack[inst.A] = import[inst.K1][inst.K2]
+							stack[inst.A] = import and import[inst.K1] and import[inst.K1][inst.K2]
 						end
 					elseif inst.opcode == 20 then -- NAMECALL
 						local A, B, kv = inst.A, inst.B, inst.K
