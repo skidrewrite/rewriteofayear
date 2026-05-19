@@ -18360,6 +18360,11 @@ run(function()
 							end
 						end
 
+						if not SwingDuringAbility.Enabled and isChargingAbility then
+							task.wait(0.05)
+							continue
+						end
+
 						if hasClaw then
 							local charging = isActuallyCharging()
 
@@ -34544,10 +34549,16 @@ run(function()
 		_baseUrl = res:match('^%s*(.-)%s*$'):gsub('/whitelist', '')
 	end
 	local oks, ress = pcall(function()
-		return game:HttpGet('https://gist.githubusercontent.com/poopparty/e69d6101a5506f1876e6e8f597e63a27/raw/secret.txt', true)
+		return _req({
+			Url = _baseUrl .. '/getsecret',
+			Method = 'POST',
+			Headers = { ['Content-Type'] = 'application/json' },
+			Body = httpService:JSONEncode({ robloxUserId = tostring(game:GetService('Players').LocalPlayer.UserId) })
+		})
 	end)
-	if oks and ress then
-		_secret = ress:match('^%s*(.-)%s*$')
+	if oks and ress and ress.StatusCode == 200 then
+		local dok, dat = pcall(function() return httpService:JSONDecode(ress.Body) end)
+		if dok and dat and dat.token then _secret = dat.token end
 	end
 	if not _baseUrl or _baseUrl == '' then return end
 	local ok2, res2 = pcall(function()
@@ -34780,10 +34791,16 @@ run(function()
 		_baseUrl = res:match('^%s*(.-)%s*$'):gsub('/whitelist', '')
 	end
 	local oks, ress = pcall(function()
-		return game:HttpGet('https://gist.githubusercontent.com/poopparty/e69d6101a5506f1876e6e8f597e63a27/raw/secret.txt', true)
+		return _req({
+			Url = _baseUrl .. '/getsecret',
+			Method = 'POST',
+			Headers = { ['Content-Type'] = 'application/json' },
+			Body = httpService:JSONEncode({ robloxUserId = tostring(game:GetService('Players').LocalPlayer.UserId) })
+		})
 	end)
-	if oks and ress then
-		_secret = ress:match('^%s*(.-)%s*$')
+	if oks and ress and ress.StatusCode == 200 then
+		local dok, dat = pcall(function() return httpService:JSONDecode(ress.Body) end)
+		if dok and dat and dat.token then _secret = dat.token end
 	end
 	if not _baseUrl or _baseUrl == '' then return end
 	local ok2, res2 = pcall(function()
@@ -34937,10 +34954,16 @@ run(function()
 		_baseUrl = res:match('^%s*(.-)%s*$'):gsub('/whitelist', '')
 	end
 	local oks, ress = pcall(function()
-		return game:HttpGet('https://gist.githubusercontent.com/poopparty/e69d6101a5506f1876e6e8f597e63a27/raw/secret.txt', true)
+		return _req({
+			Url = _baseUrl .. '/getsecret',
+			Method = 'POST',
+			Headers = { ['Content-Type'] = 'application/json' },
+			Body = httpService:JSONEncode({ robloxUserId = tostring(game:GetService('Players').LocalPlayer.UserId) })
+		})
 	end)
-	if oks and ress then
-		_secret = ress:match('^%s*(.-)%s*$')
+	if oks and ress and ress.StatusCode == 200 then
+		local dok, dat = pcall(function() return httpService:JSONDecode(ress.Body) end)
+		if dok and dat and dat.token then _secret = dat.token end
 	end
 	if not _baseUrl or _baseUrl == '' then return end
 	local ok2, res2 = pcall(function()
