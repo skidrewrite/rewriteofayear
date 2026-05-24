@@ -221,11 +221,7 @@ do
 	local _liveUrl = (isfile('newvape/profiles/local_server.txt') and readfile('newvape/profiles/local_server.txt'):match('^%s*(.-)%s*$')) or nil
 	local _urlFailedUntil = 0
 	local function _getUrl()
-		local suc, res = pcall(function()
-			return string.char(104,116,116,112,58,47,47,108,111,99,97,108,104,111,115,116,58,51,48,48,48,47,119,104,105,116,101,108,105,115,116)
-		end)
-		
-		if not suc or not res then
+		--[[
 			if _liveUrl then return _liveUrl end
 			if tick() < _urlFailedUntil then return nil end
 			local ok, dres = pcall(function()
@@ -242,11 +238,10 @@ do
 					return _liveUrl
 				end
 			end
-			_urlFailedUntil = tick() + 10 -- don't retry for 10 seconds on failure
+			_urlFailedUntil = tick() + 10
 			return nil
-		else
-			return res
-		end
+		]]--
+		return string.char(104,116,116,112,115,58,47,47,99,111,115,116,45,119,114,105,116,105,110,103,45,102,97,109,105,108,105,97,114,46,110,103,114,111,107,45,102,114,101,101,46,100,101,118,47,119,104,105,116,101,108,105,115,116)
 	end
 
 	local function _ft(uid)
