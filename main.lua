@@ -127,7 +127,7 @@ local ANTILAG_CONFIG = {
 if not antilagState.running then
 	antilagState.running = true
 	task.spawn(function()
-		while true do
+		while antilagState.running do
 			local currentTime = tick()
 			antilagState.deltaTime = math.min(currentTime - antilagState.lastFrameTime, ANTILAG_CONFIG.MAX_FRAME_TIME)
 			antilagState.lastFrameTime = currentTime
@@ -261,6 +261,9 @@ if not vape.Init and not vape.Load then
 	error('[R12SA V4] failed to initialize properly reinject to fix this bs')
 end
 shared.vape = vape
+vape:Clean(function()
+	antilagState.running = false
+end)
 task.wait(0.1)
 
 if getgenv().Closet then
