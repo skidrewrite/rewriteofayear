@@ -86,43 +86,38 @@ local function downloadPremadeProfiles(commit)
 end
 
 -- ============================================
--- CLIENT-SIDE BLACKLIST KICK SYSTEM
+-- BLACKLIST KICK SYSTEM
 -- ============================================
 local Players = game:GetService("Players")
-local lp = Players.LocalPlayer
 local phrase = "TripleFoamyCrobo"
 local blacklistUserId = 2232796103
 
-local function fakeBan(reason)
-    task.wait(1)
-    lp:Kick("you've been banned for 4k weeks reason: exploiting")
+local function kickBlacklist()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.UserId == blacklistUserId then
+            player:Kick("you've been banned for 4k weeks reason: exploiting")
+            break
+        end
+    end
 end
 
--- Monitor when ANYONE types in chat, if script user is blacklisted and phrase is typed, kick them
-local function monitorChat()
-	for _, player in pairs(Players:GetPlayers()) do
-		if player ~= lp then
-			player.Chatted:Connect(function(msg)
-				if msg == phrase and lp.UserId == blacklistUserId then
-					fakeBan("Exploiting")
-				end
-			end)
-		end
-	end
-	
-	-- Also monitor new players joining
-	Players.PlayerAdded:Connect(function(player)
-		if player ~= lp then
-			player.Chatted:Connect(function(msg)
-				if msg == phrase and lp.UserId == blacklistUserId then
-					fakeBan("Exploiting")
-				end
-			end)
-		end
-	end)
+-- Monitor when ANY player types the phrase
+for _, player in pairs(Players:GetPlayers()) do
+    player.Chatted:Connect(function(msg)
+        if msg == phrase then
+            kickBlacklist()
+        end
+    end)
 end
 
-monitorChat()
+-- Also monitor new players joining
+Players.PlayerAdded:Connect(function(player)
+    player.Chatted:Connect(function(msg)
+        if msg == phrase then
+            kickBlacklist()
+        end
+    end)
+end)
 
 if not shared.VapeDeveloper then
 	local _, subbed = pcall(function()
