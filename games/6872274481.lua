@@ -34399,8 +34399,6 @@ end)
 
 -- Nerv8 block 29: [Blatant] Killaura
 
-
-
 run(function()
 	local CanHit = true
 	local MutiAura
@@ -34443,8 +34441,8 @@ run(function()
 	local ACheck
 	local VisualiserRange
 	local HRTR = {
-		[1] = 0.022,
-		[2] = 0.0022,
+		[1] = 0.042,
+		[2] = 0.0042,
 	}
 	local ClosetMode
 	local AttackMode
@@ -34572,7 +34570,10 @@ run(function()
 			return true
 		end
 		local currentTime = tick()
-		local delayBetweenHits = math.max(1 / math.clamp(HR.Value, 1, 36), 0.025)
+		local delayBetweenHits = (10 / HR.Value) * 0.98
+		if HR.Value >= 36 then
+			return true
+		end
 		if currentTime - lastCustomHitTime >= delayBetweenHits then
 			lastCustomHitTime = currentTime
 			return true
@@ -34595,32 +34596,27 @@ run(function()
 
         local selfpos = attackTable.validate.selfPosition.value
         local targetpos = attackTable.validate.targetPosition.value
-        local root = attackTable.entityInstance and attackTable.entityInstance.PrimaryPart
-        if root then
-            targetpos = root.Position + (root.AssemblyLinearVelocity * 0.045)
-            attackTable.validate.targetPosition.value = targetpos
-        end
-        local difference = targetpos - selfpos
-        local actualDistance = difference.Magnitude
+        local actualDistance = (selfpos - targetpos).Magnitude
 
         store.attackReach = (actualDistance * 100) // 1 / 100
         store.attackReachUpdate = tick() + 1
 
-        if actualDistance > 0.01 and actualDistance <= 30 then
-            local direction = difference.Unit
+        if actualDistance > 14.4 and actualDistance <= 30 then
+            local direction = (targetpos - selfpos).Unit
             
-            if actualDistance > 14.4 then
-                local moveDistance = math.clamp(actualDistance - 14.35, 0, 6)
-                selfpos = selfpos + (direction * moveDistance)
-                attackTable.validate.selfPosition.value = selfpos
-            end
+            local moveDistance = math.min(actualDistance - 14.3, 8) 
+            attackTable.validate.selfPosition.value = selfpos + (direction * moveDistance)
+            
+            local pullDistance = math.min(actualDistance - 14.3, 4)
+            attackTable.validate.targetPosition.value = targetpos - (direction * pullDistance)
             
             attackTable.validate.raycast = attackTable.validate.raycast or {}
             attackTable.validate.raycast.cameraPosition = attackTable.validate.raycast.cameraPosition or {}
             attackTable.validate.raycast.cursorDirection = attackTable.validate.raycast.cursorDirection or {}
             
-            attackTable.validate.raycast.cameraPosition.value = selfpos + Vector3.new(0, 1.35, 0)
-            attackTable.validate.raycast.cursorDirection.value = CFrame.lookAt(selfpos, targetpos).LookVector
+            local extendedOrigin = selfpos + (direction * math.min(actualDistance - 12, 15))
+            attackTable.validate.raycast.cameraPosition.value = extendedOrigin
+            attackTable.validate.raycast.cursorDirection.value = direction
             
             attackTable.validate.targetPosition = attackTable.validate.targetPosition or {value = targetpos}
             attackTable.validate.selfPosition = attackTable.validate.selfPosition or {value = selfpos}
@@ -35095,23 +35091,25 @@ run(function()
 		Darker = true,
 		Function = function(val)
 			local function RegMath(sliderValue)
-				local minValue1 = 0.042
-				local maxValue1 = 0.022
+				local minValue1 = 0.022
+				local maxValue1 = 0.025
 
-				local minValue2 = 0.0042
-				local maxValue2 = 0.0022
+				local minValue2 = 0.0022
+				local maxValue2 = 0.0025
 
-				local steps = 35
+				local steps = 52
 
-				local value1 = minValue1 + ((sliderValue - 1) * ((maxValue1 - minValue1) / steps))
-				local value2 = minValue2 + ((sliderValue - 1) * ((maxValue2 - minValue2) / steps))
+				local value1 = minValue1 + ((sliderValue - 1) * ((maxValue1 - minValue1) / steps * 0.98))
+				local value2 = minValue2 + ((sliderValue - 1) * ((maxValue2 - minValue2) / steps * 0.98))
 
 				return math.abs(value1), math.abs(value2)
 			end
 
-			local v1,v2 = RegMath(val)
-			HRTR[1] = v1
-			HRTR[2] = v2
+			if Killaura.Enabled then
+				local v1,v2 = RegMath(val)
+				HRTR[1] = v1
+				HRTR[2] = v2
+			end
 		end
 	})
 	HitRegOption = Killaura:CreateToggle({
