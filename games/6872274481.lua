@@ -43605,10 +43605,6 @@ run(function()
         end
     end
 
-    local function isTeamBed(bed)
-        return bed and bed:GetAttribute('Team'..(lplr:GetAttribute('Team') or -1)..'NoBreak')
-    end
- 
     local function getCurrentBlock()
         local item = store.inventory.inventory.hand
         if item then
@@ -43633,55 +43629,43 @@ run(function()
         return positions
     end
 
-    local function getBedDirection(bed)
+    local function getBedAxis(bed)
+        for _, other in pairs(collectionService:GetTagged('bed')) do
+            if other ~= bed and other:GetAttribute('Team'..(lplr:GetAttribute('Team') or -1)..'NoBreak') then
+                local offset = other.Position - bed.Position
+                if offset.Magnitude > 1 and offset.Magnitude <= 7 then
+                    if math.abs(offset.X) > math.abs(offset.Z) then
+                        return Vector3.new(offset.X >= 0 and 1 or -1, 0, 0)
+                    end
+                    return Vector3.new(0, 0, offset.Z >= 0 and 1 or -1)
+                end
+            end
+        end
+
         local cf = bed.CFrame or bed:GetPivot()
         local size = bed.Size or Vector3.new(3, 1, 6)
         local axis = size.X > size.Z and cf.RightVector or cf.LookVector
 
         if math.abs(axis.X) > math.abs(axis.Z) then
-            return Vector3.new(axis.X >= 0 and 3 or -3, 0, 0)
+            return Vector3.new(axis.X >= 0 and 1 or -1, 0, 0)
         end
-        return Vector3.new(0, 0, axis.Z >= 0 and 3 or -3)
+        return Vector3.new(0, 0, axis.Z >= 0 and 1 or -1)
     end
 
-    local function getBedFootprint(bed)
-        local footprint, seen = {}, {}
-
-        local function add(pos)
-            local blockpos = bedwars.BlockController:getBlockPosition(pos)
-            local key = tostring(blockpos)
-            if not seen[key] then
-                seen[key] = true
-                table.insert(footprint, blockpos * 3)
-            end
-        end
-
-        add(bed.Position)
-        for _, other in pairs(collectionService:GetTagged('bed')) do
-            if other ~= bed and isTeamBed(other) and (other.Position - bed.Position).Magnitude <= 7 then
-                add(other.Position)
-            end
-        end
-
-        if #footprint < 2 then
-            local dir = getBedDirection(bed)
-            add(bed.Position + dir)
-            add(bed.Position - dir)
-        end
-
-        return footprint
+    local function rotateBedOffset(bed, offset)
+        local axis = getBedAxis(bed)
+        local side = Vector3.new(axis.Z, 0, -axis.X)
+        return (side * offset.X) + Vector3.new(0, offset.Y, 0) + (axis * offset.Z)
     end
 
     local function getProtectionPositions(bed, layer)
         local positions, seen = {}, {}
-        for _, bedpos in pairs(getBedFootprint(bed)) do
-            for _, pos in pairs(getPyramid(layer, 3)) do
-                local blockpos = bedwars.BlockController:getBlockPosition(bedpos + pos)
-                local key = tostring(blockpos)
-                if not seen[key] then
-                    seen[key] = true
-                    table.insert(positions, blockpos * 3)
-                end
+        for _, pos in pairs(getPyramid(layer, 3)) do
+            local blockpos = bedwars.BlockController:getBlockPosition(bed.Position + rotateBedOffset(bed, pos))
+            local key = tostring(blockpos)
+            if not seen[key] then
+                seen[key] = true
+                table.insert(positions, blockpos * 3)
             end
         end
         return positions
