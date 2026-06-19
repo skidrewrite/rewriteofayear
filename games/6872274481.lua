@@ -19716,162 +19716,154 @@ run(function()
 end)
 
 run(function()
-    local autoZenoModule
-    local targetSettings
-    local targetSelectionMode
-    local itemLimitToggle
-    local shockwaveToggle
-    local shockwaveRadius
-    local lightningStrikeToggle
-    local lightningStormToggle
-    local attackRange
-    local actionDelay
+    local AutoZeno
+    local Targets
+    local TargetMode
+    local Limit
+    local AutoShockWave
+    local ShockwaveRange
+    local UseStrike
+    local UseStorm
+    local Range
+    local Delay
 
-    local function fetchAttackItem()
-        if itemLimitToggle.Enabled then
-            local wizardStaff = (store.hand.tool and store.hand.tool.Name:find('wizard_staff')) and store.hand.tool or nil
-            return wizardStaff, wizardStaff and getHotbar(wizardStaff) or nil, wizardStaff and (tonumber(wizardStaff.Name:sub(#wizardStaff.Name, #wizardStaff.Name)) or 1) or nil
-        end
+    local function getAttackData()
+    	if Limit.Enabled then
+    		local tool = (store.hand.tool and store.hand.tool.Name:find('wizard_staff')) and store.hand.tool or nil
+    		return tool, tool and getHotbar(tool) or nil, tool and (tonumber(tool.Name:sub(#tool.Name, #tool.Name)) or 1) or nil
+    	end
 
-        for index, item in pairs(store.inventory.inventory.items) do
-            if item.itemType:find('wizard_staff') then
-                switchItem(item, 0)
-                return item, index, tonumber(item.itemType:sub(#item.itemType, #item.itemType)) or 1
-            end
-        end
+    	for i, v in store.inventory.inventory.items do
+    		if v.itemType:find('wizard_staff') then
+    			switchItem(v, 0)
+    			return v, i, tonumber(v.itemType:sub(#v.itemType, #v.itemType)) or 1
+    		end
+    	end
 
-        return nil
+    	return
     end
 
-    autoZenoModule = vape.Categories.Kits:CreateModule({
-        Name = 'AutoZeno',
-        Function = function(callback)
-            if callback then
-                repeat
-                    if entitylib.isAlive then
-                        local staff, _, level = fetchAttackItem()
+    AutoZeno = vape.Categories.Kits:CreateModule({
+    	Name = 'Auto Zeno',
+    	Function = function(call)
+    		if call then
+    			repeat
+    				if entitylib.isAlive then
+    					local staff, __, level = getAttackData()
 
-                        if staff then
-                            local playerPosition = entitylib.character.RootPart.Position
-                            local nearestEntity = entitylib.EntityPosition({
-                                Origin = playerPosition,
-                                Range = (attackRange.Value < 6 and shockwaveToggle.Enabled and 7) or attackRange.Value,
-                                Part = 'RootPart',
-                                Players = targetSettings.Players.Enabled,
-                                NPCs = targetSettings.NPCs.Enabled,
-                                Sort = sortmethods[targetSelectionMode.Value]
-                            })
+    					if staff then
+    						local localPosition = entitylib.character.RootPart.Position
+    						local ent = entitylib.EntityPosition({
+    							Origin = localPosition,
+    							Range = (Range.Value < 6 and AutoShockWave.Enabled and 7) or Range.Value,
+    							Part = 'RootPart',
+    							Players = Targets.Players.Enabled,
+    							NPCs = Targets.NPCs.Enabled,
+    							Sort = sortmethods[TargetMode.Value],
+    						})
 
-                            if nearestEntity then
-                                if shockwaveToggle.Enabled and level > 2 then
-                                    if bedwars.AbilityController:canUseAbility('SHOCKWAVE') and (playerPosition - nearestEntity.RootPart.Position).Magnitude <= shockwaveRadius.Value then
-                                        bedwars.AbilityController:useAbility('SHOCKWAVE', newproxy(true), {
-                                            target = CFrame.lookAt(playerPosition, nearestEntity.RootPart.Position).LookVector
-                                        })
-                                        task.wait(actionDelay.Value)
-                                    end
-                                end
+    						if ent then
+    							if AutoShockWave.Enabled and level > 2 then
+    								if
+    									bedwars.AbilityController:canUseAbility('SHOCKWAVE')
+    									and (localPosition - ent.RootPart.Position).Magnitude <= ShockwaveRange.Value
+    								then
+    									bedwars.AbilityController:useAbility('SHOCKWAVE', newproxy(true), {
+    										target = CFrame.lookAt(localPosition, ent.RootPart.Position).LookVector,
+    									})
+    									task.wait(Delay.Value)
+    								end
+    							end
 
-                                if lightningStrikeToggle.Enabled and bedwars.AbilityController:canUseAbility('LIGHTNING_STRIKE') then
-                                    bedwars.AbilityController:useAbility('LIGHTNING_STRIKE', newproxy(true), {
-                                        target = nearestEntity.RootPart.Position + ((nearestEntity.Humanoid.MoveDirection or Vector3.zero) * (1 + lplr:GetNetworkPing()))
-                                    })
-                                    task.wait(actionDelay.Value)
-                                end
+    							if UseStrike.Enabled and bedwars.AbilityController:canUseAbility('LIGHTNING_STRIKE') then
+    								bedwars.AbilityController:useAbility('LIGHTNING_STRIKE', newproxy(true), {
+    									target = ent.RootPart.Position + ((ent.Humanoid.MoveDirection or Vector3.zero) * (1 + lplr:GetNetworkPing())),
+    								})
+    								task.wait(Delay.Value)
+    							end
 
-                                if lightningStormToggle.Enabled and level > 1 then
-                                    if bedwars.AbilityController:canUseAbility('LIGHTNING_STORM') then
-                                        bedwars.AbilityController:useAbility('LIGHTNING_STORM', newproxy(true), {
-                                            target = nearestEntity.RootPart.Position + ((nearestEntity.Humanoid.MoveDirection or Vector3.zero) * (1 + lplr:GetNetworkPing()))
-                                        })
-                                        task.wait(actionDelay.Value)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    task.wait(0.1)
-                until not autoZenoModule.Enabled
-            end
-        end,
-        Tooltip = 'Automatically uses abilities for the Zeno kit'
+    							if UseStorm.Enabled and level > 1 then
+    								if bedwars.AbilityController:canUseAbility('LIGHTNING_STORM') then
+    									bedwars.AbilityController:useAbility('LIGHTNING_STORM', newproxy(true), {
+    										target = ent.RootPart.Position + ((ent.Humanoid.MoveDirection or Vector3.zero) * (1 + lplr:GetNetworkPing())),
+    									})
+    									task.wait(Delay.Value)
+    								end
+    							end
+    						end
+    					end
+    				end
+    				task.wait(0.1)
+    			until not AutoZeno.Enabled
+    		end
+    	end,
+    	Tooltip = 'Automatically uses zeno\'s staff'
     })
 
-    targetSettings = autoZenoModule:CreateTargets({
-        Players = true,
-        NPCs = false
+    Targets = AutoZeno:CreateTargets({
+    	Players = true,
+    	NPCs = false,
     })
-
-    local availableSortingMethods = {'Damage', 'Distance'}
-    for method in sortmethods do
-        if not table.find(availableSortingMethods, method) then
-            table.insert(availableSortingMethods, method)
-        end
+    local methods = {'Damage', 'Distance'}
+    for i in sortmethods do
+    	if not table.find(methods, i) then
+    		table.insert(methods, i)
+    	end
     end
-
-    targetSelectionMode = autoZenoModule:CreateDropdown({
-        Name = 'Target Mode',
-        List = availableSortingMethods,
-        Default = 'Distance'
+    TargetMode = AutoZeno:CreateDropdown({
+    	Name = 'Target Mode',
+    	List = methods,
+    	Default = 'Distance'
     })
-
-    itemLimitToggle = autoZenoModule:CreateToggle({
-        Name = 'Limit to item',
-        Default = true
+    Limit = AutoZeno:CreateToggle({
+    	Name = 'Limit to item',
+    	Default = true
     })
-
-    lightningStrikeToggle = autoZenoModule:CreateToggle({
-        Name = 'Use Lightning Strike',
-        Default = true
+    UseStrike = AutoZeno:CreateToggle({
+    	Name = 'Use Lightning Strike',
+    	Default = true
     })
-
-    lightningStormToggle = autoZenoModule:CreateToggle({
-        Name = 'Use Lightning Storm'
+    UseStorm = AutoZeno:CreateToggle({Name = 'Use Lightning Storm'})
+    AutoShockWave = AutoZeno:CreateToggle({
+    	Name = 'Auto Shockwave',
+    	Function = function(call)
+    		pcall(function()
+    			ShockwaveRange.Object.Visible = call
+    		end)
+    	end,
+    	Tooltip = 'Automatically uses the shockwave ability when a target is near',
     })
-
-    shockwaveToggle = autoZenoModule:CreateToggle({
-        Name = 'Auto Shockwave',
-        Tooltip = 'Uses Shockwave automatically when a target is in range',
-        Function = function(enabled)
-            pcall(function()
-                shockwaveRadius.Object.Visible = enabled
-            end)
-        end
+    ShockwaveRange = AutoZeno:CreateSlider({
+    	Name = 'Shockwave Range',
+    	Visible = false,
+    	Darker = true,
+    	Min = 1,
+    	Max = 12,
+    	Suffix = function(val)
+    		return val > 1 and 'studs' or 'stud'
+    	end,
+    	Decimal = 5,
+    	Default = 12
     })
-
-    shockwaveRadius = autoZenoModule:CreateSlider({
-        Name = 'Shockwave Range',
-        Visible = false,
-        Darker = true,
-        Min = 1,
-        Max = 12,
-        Suffix = function(value)
-            return value > 1 and 'studs' or 'stud'
-        end,
-        Decimal = 5,
-        Default = 12
+    Range = AutoZeno:CreateSlider({
+    	Name = 'Range',
+    	Min = 1,
+    	Max = 60,
+    	Default = 35,
+    	Suffix = function(val)
+    		return val > 1 and 'studs' or 'stud'
+    	end,
+    	Decimal = 5
     })
-
-    attackRange = autoZenoModule:CreateSlider({
-        Name = 'Attack Range',
-        Min = 1,
-        Max = 60,
-        Default = 35,
-        Suffix = function(value)
-            return value > 1 and 'studs' or 'stud'
-        end,
-        Decimal = 5
-    })
-
-    actionDelay = autoZenoModule:CreateSlider({
-        Name = 'Delay',
-        Min = 0,
-        Max = 10,
-        Default = 0.5,
-        Decimal = 5,
-        Suffix = function(value)
-            return value > 1 and 'secs' or 'sec'
-        end
+    Delay = AutoZeno:CreateSlider({
+    	Name = 'Delay',
+    	Min = 0,
+    	Max = 10,
+    	Default = 0.5,
+    	Decimal = 5,
+    	Suffix = function(val)
+    		return val > 1 and 'secs' or 'sec'
+    	end
     })
 end)
 
