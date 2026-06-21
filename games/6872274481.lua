@@ -45507,23 +45507,6 @@ end
     })
 end)
 
---// BEGIN NERV8 MERGED MODULES
--- Merged from Nerv8 6872274481.lua; universal.lua intentionally excluded.
--- These blocks are appended instead of replacing R12SA's existing modules.
-local role = role or 'owner'
-local oldpred = oldpred or prediction
-local cyanpred = cyanpred or oldpred
-local synpred = synpred or oldpred
-local zikopred = zikopred or oldpred
-local downloadFile = downloadFile or function(filePath, func)
-	filePath = filePath:gsub('^ReVape/', 'newvape/')
-	if isfile and isfile(filePath) then
-		return (func or readfile)(filePath)
-	end
-	error('Missing merged Nerv8 dependency: '..tostring(filePath))
-end
--- Nerv8 feature block count: 76
-
 
 -- Nerv8 block 2: [Combat] NoClickDelay
 	
