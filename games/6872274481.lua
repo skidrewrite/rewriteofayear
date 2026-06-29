@@ -44004,7 +44004,6 @@ run(function()
 	})
 end)
 
-
 run(function()
 	local LootGrabber
 	local Range
