@@ -45156,7 +45156,7 @@ run(function()
     })
 end)
 
-run(function()
+
 Crasher = vape.Categories.Combat:CreateModule({
     Name = "Crasher",
     Function = function(callback)
