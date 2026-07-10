@@ -12278,78 +12278,35 @@ run(function()
 		return val
 	end
 
-	local function hasDirectLineOfSight(fromPos, toPos)
-		-- Raycast from player to bed to ensure no blocks are blocking the line of sight
-		-- This prevents hitting beds through hollow spots
-		local direction = (toPos - fromPos)
+	local function isPathBlockedByWalls(bedPos, playerPos)
+		-- Raycast from player towards bed to check if walls block the way
+		local direction = (bedPos - playerPos)
 		local distance = direction.Magnitude
 		
-		if distance == 0 then return true end
+		if distance == 0 then return false end
 		
 		local raycastParams = RaycastParams.new()
 		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 		raycastParams.FilterDescendantsInstances = {entitylib.character}
 		
-		local rayResult = workspace:Raycast(fromPos, direction.Unit * distance, raycastParams)
+		-- Raycast from player to bed
+		local rayResult = workspace:Raycast(playerPos, direction.Unit * distance, raycastParams)
 		
-		-- If raycast hit something, check if it's the bed we're trying to hit
 		if rayResult then
 			local hitPart = rayResult.Instance
-			if hitPart and hitPart:IsDescendantOf(workspace) then
-				-- Check if the hit is the bed itself or within reasonable tolerance
-				local hitDist = (rayResult.Position - fromPos).Magnitude
-				local targetDist = distance
-				-- Allow small tolerance for bed structure
-				if math.abs(hitDist - targetDist) > 2 then
-					return false  -- Something is blocking the path
-				end
-			end
-		end
-		
-		return true
-	end
-
-	local function isBedHallowed(bedBlock)
-		-- Check if a bed has significant hollow sections by raycasting to its center
-		if not bedBlock then return false end
-		
-		local bedCenter = bedBlock.Position
-		local bedSize = bedBlock.Size
-		local playerPos = (entitylib.character and entitylib.character.RootPart.Position) or Vector3.zero
-		
-		-- Try raycasting from player to multiple points on the bed
-		local checkPoints = {
-			bedCenter,  -- Center
-			bedCenter + Vector3.new(bedSize.X / 3, 0, 0),  -- Right
-			bedCenter + Vector3.new(-bedSize.X / 3, 0, 0),  -- Left
-			bedCenter + Vector3.new(0, 0, bedSize.Z / 3),  -- Front
-			bedCenter + Vector3.new(0, 0, -bedSize.Z / 3),  -- Back
-		}
-		
-		local blockedPoints = 0
-		local raycastParams = RaycastParams.new()
-		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-		raycastParams.FilterDescendantsInstances = {entitylib.character, bedBlock}
-		
-		for _, checkPoint in checkPoints do
-			local direction = (checkPoint - playerPos)
-			local distance = direction.Magnitude
-			
-			if distance > 0 then
-				local rayResult = workspace:Raycast(playerPos, direction.Unit * (distance - 0.5), raycastParams)
+			if hitPart then
+				local hitDistance = (rayResult.Position - playerPos).Magnitude
+				local targetDistance = distance
 				
-				-- If something blocks this ray that isn't the bed, count it
-				if rayResult then
-					local hitPart = rayResult.Instance
-					if hitPart and not hitPart:IsDescendantOf(bedBlock) then
-						blockedPoints += 1
-					end
+				-- If we hit something significantly before reaching the bed, path is blocked
+				-- Allow 3 studs tolerance for bed structure
+				if hitDistance < targetDistance - 3 then
+					return true  -- Wall is blocking
 				end
 			end
 		end
 		
-		-- If 3 or more points are blocked by walls, the bed is not hallowed from this angle
-		return blockedPoints < 2
+		return false  -- No walls blocking
 	end
 
 	local function passesChecks(v)
@@ -12596,21 +12553,20 @@ run(function()
 					
 						if best then
 							if not MouseDown or not MouseDown.Enabled or inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-								-- Check if bed is hallowed and if we have direct line of sight
-								local bedIsHallowed = isBedHallowed(best)
-								local hasLOS = hasDirectLineOfSight(localPosition, best.Position)
+								-- Check if walls are blocking the path to bed
+								local isBlocked = isPathBlockedByWalls(best.Position, localPosition)
 								
-								if bedIsHallowed and not hasLOS then
-									-- Bed is hallowed and we don't have direct LOS, break path blocks first
+								if isBlocked then
+									-- Walls are blocking, try to break path blocks first
 									local pathBlock = findPathBlock(best.Position, localPosition)
 									if pathBlock then
 										doBreak(pathBlock, true)
 									else
-										-- No path blocks found, wait and continue
+										-- No path blocks found, wait
 										task.wait(BreakSpeed.Value)
 									end
 								else
-									-- Either bed isn't hallowed or we have direct LOS, can break it
+									-- Path is clear, break the bed directly
 									doBreak(best, false)
 								end
 								continue
