@@ -12278,37 +12278,78 @@ run(function()
 		return val
 	end
 
-	local function isBedDefended(bedBlock)
-		-- Only consider a bed "defended" if there are ENEMY blocks actively blocking the path
-		-- Not just because the bed has structural gaps
-		if not bedBlock then return false end
+	local function hasDirectLineOfSight(fromPos, toPos)
+		-- Raycast from player to bed to ensure no blocks are blocking the line of sight
+		-- This prevents hitting beds through hollow spots
+		local direction = (toPos - fromPos)
+		local distance = direction.Magnitude
 		
-		local bedPos = bedBlock.Position / 3
-		local playerPos = (entitylib.character and entitylib.character.RootPart.Position) or Vector3.zero
-		local dirToBed = (bedPos * 3 - playerPos).Unit
+		if distance == 0 then return true end
 		
-		-- Check blocks in a line between player and bed for defensive placement
-		local distance = (bedPos * 3 - playerPos).Magnitude
-		local blocksInPath = 0
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+		raycastParams.FilterDescendantsInstances = {entitylib.character}
 		
-		for i = 6, distance - 3, 3 do
-			local checkPos = roundPos(playerPos + dirToBed * i)
-			local blockAtPos = getPlacedBlock(checkPos)
-			
-			if blockAtPos and blockAtPos ~= bedBlock then
-				-- Make sure it's actually a defensively placed block (not the bed itself)
-				local blockTeam = blockAtPos:GetAttribute('Team') or blockAtPos:GetAttribute('TeamId')
-				local bedTeam = bedBlock:GetAttribute('Team') or bedBlock:GetAttribute('TeamId')
-				
-				if blockTeam and bedTeam and tonumber(blockTeam) == tonumber(bedTeam) then
-					blocksInPath += 1
+		local rayResult = workspace:Raycast(fromPos, direction.Unit * distance, raycastParams)
+		
+		-- If raycast hit something, check if it's the bed we're trying to hit
+		if rayResult then
+			local hitPart = rayResult.Instance
+			if hitPart and hitPart:IsDescendantOf(workspace) then
+				-- Check if the hit is the bed itself or within reasonable tolerance
+				local hitDist = (rayResult.Position - fromPos).Magnitude
+				local targetDist = distance
+				-- Allow small tolerance for bed structure
+				if math.abs(hitDist - targetDist) > 2 then
+					return false  -- Something is blocking the path
 				end
 			end
 		end
 		
-		-- Only consider defended if there are 2+ defensive blocks between you and the bed
-		-- This prevents false positives from bed structure holes
-		return blocksInPath >= 2
+		return true
+	end
+
+	local function isBedHallowed(bedBlock)
+		-- Check if a bed has significant hollow sections by raycasting to its center
+		if not bedBlock then return false end
+		
+		local bedCenter = bedBlock.Position
+		local bedSize = bedBlock.Size
+		local playerPos = (entitylib.character and entitylib.character.RootPart.Position) or Vector3.zero
+		
+		-- Try raycasting from player to multiple points on the bed
+		local checkPoints = {
+			bedCenter,  -- Center
+			bedCenter + Vector3.new(bedSize.X / 3, 0, 0),  -- Right
+			bedCenter + Vector3.new(-bedSize.X / 3, 0, 0),  -- Left
+			bedCenter + Vector3.new(0, 0, bedSize.Z / 3),  -- Front
+			bedCenter + Vector3.new(0, 0, -bedSize.Z / 3),  -- Back
+		}
+		
+		local blockedPoints = 0
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+		raycastParams.FilterDescendantsInstances = {entitylib.character, bedBlock}
+		
+		for _, checkPoint in checkPoints do
+			local direction = (checkPoint - playerPos)
+			local distance = direction.Magnitude
+			
+			if distance > 0 then
+				local rayResult = workspace:Raycast(playerPos, direction.Unit * (distance - 0.5), raycastParams)
+				
+				-- If something blocks this ray that isn't the bed, count it
+				if rayResult then
+					local hitPart = rayResult.Instance
+					if hitPart and not hitPart:IsDescendantOf(bedBlock) then
+						blockedPoints += 1
+					end
+				end
+			end
+		end
+		
+		-- If 3 or more points are blocked by walls, the bed is not hallowed from this angle
+		return blockedPoints < 2
 	end
 
 	local function passesChecks(v)
@@ -12555,13 +12596,21 @@ run(function()
 					
 						if best then
 							if not MouseDown or not MouseDown.Enabled or inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-								-- ALWAYS try to break blocks in front first, regardless of defense status
-								local pathBlock = findPathBlock(best.Position, localPosition)
-								if pathBlock then
-									-- Break the path block first to clear any defense
-									doBreak(pathBlock, true)
+								-- Check if bed is hallowed and if we have direct line of sight
+								local bedIsHallowed = isBedHallowed(best)
+								local hasLOS = hasDirectLineOfSight(localPosition, best.Position)
+								
+								if bedIsHallowed and not hasLOS then
+									-- Bed is hallowed and we don't have direct LOS, break path blocks first
+									local pathBlock = findPathBlock(best.Position, localPosition)
+									if pathBlock then
+										doBreak(pathBlock, true)
+									else
+										-- No path blocks found, wait and continue
+										task.wait(BreakSpeed.Value)
+									end
 								else
-									-- No blocks in the way, break the bed directly
+									-- Either bed isn't hallowed or we have direct LOS, can break it
 									doBreak(best, false)
 								end
 								continue
