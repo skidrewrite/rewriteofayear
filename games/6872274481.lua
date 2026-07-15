@@ -13656,34 +13656,38 @@ run(function()
     local Height
     local Network
     local FrozenItems = {}
+    local EnabledTime = 0
     
     LootTP = vape.Categories.Utility:CreateModule({
         Name = 'LootTP',
         Function = function(callback)
             if callback then
+                EnabledTime = tick()
                 local items = collection('ItemDrop', LootTP)
                 repeat
                     if entitylib.isAlive then
                         local localPosition = entitylib.character.HumanoidRootPart.Position
                         
                         for _, v in items do
-                            -- Only process items dropped AFTER module was enabled
                             local dropTime = v:GetAttribute('ClientDropTime') or 0
                             
-                            if isnetworkowner(v) and Network.Enabled and entitylib.character.Humanoid.Health > 0 then
-                                -- Teleport item to frozen height immediately
-                                if not FrozenItems[v] then
-                                    local voidHeight = Height.Value
-                                    local targetPosition = Vector3.new(v.Position.X, voidHeight, v.Position.Z)
-                                    
-                                    v.CFrame = CFrame.new(targetPosition)
-                                    v.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                    
-                                    FrozenItems[v] = targetPosition
-                                else
-                                    -- Keep item frozen at height
-                                    v.CFrame = CFrame.new(FrozenItems[v])
-                                    v.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            -- Only process items dropped AFTER module was enabled
+                            if dropTime >= EnabledTime then
+                                if isnetworkowner(v) and Network.Enabled and entitylib.character.Humanoid.Health > 0 then
+                                    -- Teleport item to frozen height immediately
+                                    if not FrozenItems[v] then
+                                        local voidHeight = Height.Value
+                                        local targetPosition = Vector3.new(v.Position.X, voidHeight, v.Position.Z)
+                                        
+                                        v.CFrame = CFrame.new(targetPosition)
+                                        v.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                        
+                                        FrozenItems[v] = targetPosition
+                                    else
+                                        -- Keep item frozen at height
+                                        v.CFrame = CFrame.new(FrozenItems[v])
+                                        v.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                    end
                                 end
                             end
                         end
