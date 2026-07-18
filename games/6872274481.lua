@@ -34625,7 +34625,7 @@ local function FireAttackRemote(attackTable)
     if not canHitWithCustomReg() then return end
 
     local now = workspace:GetServerTimeNow()
-    if now - lastSuccessfulHitTime < 90000000000000000 then return end   -- spam protection
+    if now - lastSuccessfulHitTime < 699 then return end   -- spam protection
 
     local _atkPlr = playersService:GetPlayerFromCharacter(attackTable.entityInstance)
     if _atkPlr then
