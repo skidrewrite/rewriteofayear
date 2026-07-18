@@ -34481,6 +34481,7 @@ run(function()
     local lastAttackTime = 0
     local lastManualSwing = 0
     local lastSwingServerTime = 0
+	local lastSuccessfulHitTime = 0																																																																																																																																	
     local lastSwingServerTimeDelta = 0
     local AttackCheck
     local kitChecks
@@ -34601,10 +34602,14 @@ run(function()
     local _t4LastHit = {}
 
 local lastSwingServerTime = 0
+local lastSuccessfulHitTime = 0
 
 local function FireAttackRemote(attackTable)
     if not AttackRemote then return end
     if not canHitWithCustomReg() then return end
+
+    local now = workspace:GetServerTimeNow()
+    if now - lastSuccessfulHitTime < 0.085 then return end   -- spam protection
 
     local _atkPlr = playersService:GetPlayerFromCharacter(attackTable.entityInstance)
     if _atkPlr then
@@ -34612,7 +34617,6 @@ local function FireAttackRemote(attackTable)
         if targetTier >= 99 then return end
         if targetTier == 4 and getAccountTier(lplr) <= 2 then
             local uid = _atkPlr.UserId
-            local now = workspace:GetServerTimeNow()
             if _t4LastHit[uid] and now - _t4LastHit[uid] < (10/32) then return end
             _t4LastHit[uid] = now
         end
@@ -34626,11 +34630,16 @@ local function FireAttackRemote(attackTable)
         local delta = (attackTable.validate.selfPosition.value - attackTable.validate.targetPosition.value).Magnitude
         if delta > 16 then
             local dir = (attackTable.validate.targetPosition.value - attackTable.validate.selfPosition.value).Unit
-            attackTable.validate.selfPosition.value = attackTable.validate.selfPosition.value + dir * 2.35
+            attackTable.validate.selfPosition.value = attackTable.validate.selfPosition.value + dir * 2.25
         end
     end
 
-    return AttackRemote:FireServer(attackTable)
+    local success = AttackRemote:FireServer(attackTable)
+    if success then
+        lastSuccessfulHitTime = now
+    end
+
+    return success
 end
 
     local function createRangeCircle()
