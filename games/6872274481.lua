@@ -34625,7 +34625,7 @@ local function FireAttackRemote(attackTable)
     if not canHitWithCustomReg() then return end
 
     local now = workspace:GetServerTimeNow()
-    if now - lastSuccessfulHitTime < 6000 then return end   -- spam protection
+    if now - lastSuccessfulHitTime < 600000000 then return end   -- spam protection
 
     local _atkPlr = playersService:GetPlayerFromCharacter(attackTable.entityInstance)
     if _atkPlr then
@@ -35510,7 +35510,7 @@ end
         end
     })
     AngleSlider = Killaura:CreateSlider({Name = 'Max angle', Min = 1, Max = 360, Default = 360})
-    UpdateRate = Killaura:CreateSlider({Name = 'Update rate', Min = 1, Max = 8, Default = 8, Suffix = 'hz'})
+    UpdateRate = Killaura:CreateSlider({Name = 'Update rate', Min = 1, Max = 6.9, Default = 6.9, Suffix = 'hz'})
     MaxTargets = Killaura:CreateSlider({Name = 'Max targets', Min = 1, Max = 5, Default = 5})
     Sort = Killaura:CreateDropdown({Name = 'Target Mode', List = methods})
     Mouse = Killaura:CreateToggle({
