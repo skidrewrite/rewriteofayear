@@ -34586,9 +34586,9 @@ run(function()
         if not delta then return false end
         local currentTime = tick()
         local delayBetweenAttacks
-        if delta > 20 then delayBetweenAttacks = 0.21
-        elseif delta > 18 then delayBetweenAttacks = 0.21
-        elseif delta > 14.4 then delayBetweenAttacks = 0.21
+        if delta > 20 then delayBetweenAttacks = 0.34
+        elseif delta > 18 then delayBetweenAttacks = 0.27
+        elseif delta > 14.4 then delayBetweenAttacks = 0.25
         elseif delta > 10 then delayBetweenAttacks = 0.01
         else delayBetweenAttacks = 0 end
         local elapsed = currentTime - lastOptimizedAttackTime
@@ -34625,7 +34625,7 @@ local function FireAttackRemote(attackTable)
     if not canHitWithCustomReg() then return end
 
     local now = workspace:GetServerTimeNow()
-    if now - lastSuccessfulHitTime < 6000 then return end   -- spam protection
+    if now - lastSuccessfulHitTime < 0 then return end   -- spam protection
 
     local _atkPlr = playersService:GetPlayerFromCharacter(attackTable.entityInstance)
     if _atkPlr then
