@@ -34586,10 +34586,10 @@ run(function()
         if not delta then return false end
         local currentTime = tick()
         local delayBetweenAttacks
-        if delta > 20 then delayBetweenAttacks = 0.28
-        elseif delta > 18 then delayBetweenAttacks = 0.25
-        elseif delta > 14.4 then delayBetweenAttacks = 0.18
-        elseif delta > 10 then delayBetweenAttacks = 0.04
+        if delta > 20 then delayBetweenAttacks = 0.25
+        elseif delta > 18 then delayBetweenAttacks = 0.21
+        elseif delta > 14.4 then delayBetweenAttacks = 0.15
+        elseif delta > 10 then delayBetweenAttacks = 0.01
         else delayBetweenAttacks = 0 end
         local elapsed = currentTime - lastOptimizedAttackTime
         if elapsed >= delayBetweenAttacks then
